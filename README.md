@@ -57,11 +57,11 @@ Waggle可以监听Tcp或者Udp端口，Waggle会启动一个Unix域套接字以�
 
 ## More to come
 
-1, High Availability model inside a docker cluster
+1, High Availability model inside a docker cluster.
 docker集群中的高可用特性，会近期更新。
 
 2, Service sharding according to multitenanted user.
 服务分片，比如按照用户服务分片的demo会在近期更新。
 
-3, Performance testing, please refer to [product web page](https://www.apimetas.com/docs/waggle.html)
+3, Performance testing, please refer to [product web page](https://www.apimetas.com/docs/waggle.html).
 
