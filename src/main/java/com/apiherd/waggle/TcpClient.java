@@ -3,6 +3,7 @@ package com.apiherd.waggle;
 import java.net.Socket;
 import java.io.InputStream;
 import java.io.DataOutputStream;
+import java.io.OutputStreamWriter;
 import java.net.SocketAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
@@ -12,7 +13,8 @@ public class TcpClient extends SocketClient {
     private Socket clientSocket;
     private int maxBuff = 512*1024;
     private InputStream inFromServer;
-    private DataOutputStream outToServer;
+    private OutputStreamWriter writer;
+    //private DataOutputStream outToServer;
 
     public TcpClient(int num, int maxBuff) {
         super(num);
@@ -38,6 +40,12 @@ public class TcpClient extends SocketClient {
         }
     }
 
+    public boolean available() {
+        if (null != clientSocket && !clientSocket.isClosed())
+            return true;
+        return false;
+    }
+
     @Override
     public SocketClient setUp() {
         if (null != clientSocket && !clientSocket.isClosed())
@@ -45,7 +53,8 @@ public class TcpClient extends SocketClient {
         try {
             clientSocket = new Socket(this.host, this.port);
             inFromServer = clientSocket.getInputStream();
-            outToServer = new DataOutputStream(clientSocket.getOutputStream());
+            //outToServer = new DataOutputStream(clientSocket.getOutputStream());
+            this.writer = new OutputStreamWriter(clientSocket.getOutputStream(), Charset.forName("UTF-8"));
         } catch (Exception exp) {
             log.error("", exp);
         }
@@ -53,12 +62,15 @@ public class TcpClient extends SocketClient {
     }
 
     @Override
-    public void writeString(String str) {
+    public boolean writeString(String str) {
         try {
-            this.outToServer.writeUTF(str);
+            this.writer.write(str);
+            this.writer.flush();
         } catch (Exception exp) {
             log.error("", exp);
+            return false;
         }
+        return true;
     }
 
     @Override

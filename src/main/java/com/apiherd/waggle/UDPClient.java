@@ -55,7 +55,7 @@ public class UDPClient extends SocketClient {
     }
 
     @Override
-    public void writeString(String msg) {
+    public boolean writeString(String msg) {
         try {
             this.send.clear();
             if (!this.channel.isConnected())
@@ -65,6 +65,7 @@ public class UDPClient extends SocketClient {
         } catch (Exception exp){
             log.error("", exp);
         }
+        return true;
     }
 
     @Override

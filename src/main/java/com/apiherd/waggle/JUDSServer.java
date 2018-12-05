@@ -1,6 +1,7 @@
 package com.apiherd.waggle;
 
 import com.apiherd.api.APIRequest;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,8 +86,8 @@ public class JUDSServer {
             String request = connection.recieve();
             RawsRequest raw = new RawsRequest().setJson(request);
             APIRequest apiRequest = APIRequest.parseAPIRequest(raw);
-            String response = api.invokeAPI(apiRequest, null);
-            connection.send(response);
+            JSONObject response = api.invokeAPI(apiRequest, null);
+            connection.send(response.toString());
             socket.close();
         } catch (Exception exp) {
             log.error("",exp);

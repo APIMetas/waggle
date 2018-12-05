@@ -1,5 +1,14 @@
 package com.apiherd.tenantdb;
 
+import com.apiherd.api.APIRequest;
+import com.apiherd.api.APIable;
+import com.apiherd.api.RawsRequest;
+import com.apiherd.api.WriteableChannel;
+import com.apiherd.waggle.BuffedInvokePool;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 public abstract class DBHelper {
     protected String dbPath;
     protected String dbName;
@@ -29,10 +38,16 @@ public abstract class DBHelper {
 
     public abstract void closeDB();
 
-    public abstract void putJsonObject(String key, String value);
+    public abstract JSONObject getJsonObject(String ownerId, TreedJson tree, JSONObject value);
 
-    public abstract String getJsonObject(String key);
+    public abstract JSONObject getJsonArray(String ownerId, TreedJson tree, JSONObject value);
 
-    public abstract void deleteObject(String key);
+    public void putJsonObject(String ownerId, TreedJson tree, JSONObject value) {
+        if (tree instanceof TreedIdedJson && tree.getPrimaryKey(ownerId, value).equals("+"))
+            value.put(tree.getKeyName(), ((TreedIdedJson)tree).getUniqueId());
+    }
 
+    public abstract void putJsonArray(String ownerId, TreedJson tree, JSONArray array);
+
+    public abstract void deleteObject(String ownerId, TreedJson tree, JSONObject value);
 }

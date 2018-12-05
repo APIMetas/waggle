@@ -1,19 +1,19 @@
 package com.apiherd.tenantdb;
 
-import com.apiherd.api.APIRequest;
+import org.json.JSONObject;
 
-public class TenantUser extends TreedJson{
+public class TenantUser extends TreedIdedJson{
     public TenantUser() {
-        super("UserId");
+        super(null,"OwnerId", 100, 10);
     }
 
     @Override
-    public String getPrimaryKey(APIRequest request) {
-        return request.getMeta().getUserId();
+    public String getPrimaryKey(String userId, JSONObject request) {
+        return userId;
     }
 
     @Override
-    public String getKeyFullPath(String userId, APIRequest request) {
+    public String getKeyFullPath(String userId, JSONObject request) {
         return userId;
     }
 }

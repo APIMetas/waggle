@@ -1,6 +1,7 @@
 package com.apiherd.api;
 
 import com.apiherd.waggle.BuffedInvokePool;
+import org.json.JSONObject;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -29,7 +30,7 @@ public class APIMetrics {
             this.ids.put(name, requestId);
     }
 
-    public String readMetrics(String name, String requestId) {
+    public JSONObject readMetrics(String name, String requestId) {
         Date now = new Date();
         long diff = (now.getTime() - date.getTime())/1000;
         StringBuilder strB = new StringBuilder("{\"ServiceName\":\"");
@@ -47,14 +48,14 @@ public class APIMetrics {
         if (qps.keySet().size() > 0)
             strB.deleteCharAt(strB.length() - 1);
         strB.append("],\"RequestId\":\"").append(requestId).append("\"}");
-        return strB.toString();
+        return new JSONObject(strB.toString());
     }
 
-    public String getAPIMetrics(RawsRequest request, WriteableChannel channel) {
+    public JSONObject getAPIMetrics(RawsRequest request, WriteableChannel channel) {
         APIRequest api = (APIRequest) request;
         String service = api.getBiz().optString("ServiceName");
         if (null == service)
-            return api.getRequestIdJson();
+            return new JSONObject(api.getRequestIdJson());
         return this.readMetrics(service, api.getMeta().getRequestId());
     }
 }

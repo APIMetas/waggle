@@ -47,6 +47,7 @@ public class APIRequest extends RawsRequest {
         api.setMeta(APIHerdMeta.parseAPIMeta(json));
         json.remove("APIMetas");
         api.setBiz(json);
+        request.setJson(null);
 
         return api;
     }

@@ -25,7 +25,9 @@ public abstract class SocketClient {
 
     public abstract SocketClient setUp();
 
-    public abstract void writeString(String str);
+    public boolean writeString(String str) {
+        return true;
+    }
 
     public abstract String readString();
 

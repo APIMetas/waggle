@@ -6,17 +6,29 @@ import org.json.JSONObject;
  * Created by leesogo on 17/6/9.
  */
 public class APIHerdMeta {
-    private String requestId;
     private String userId;
-    private String serviceName;
-    private String serviceVersion;
-    private String serviceStage;
+    private String ownerId;
+    private String requestId;
     private String actionName;
     private String methodName;
+    private String serviceName;
     private String requestTime;
+    private String serviceStage;
     private String resourcePath;
     private JSONObject metaJson;
     private boolean needResponse;
+    private String serviceVersion;
+
+    public String getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(String ownerId) {
+        if ("".equals(ownerId))
+            this.ownerId = this.userId;
+        else
+            this.ownerId = ownerId;
+    }
 
     public String getMethodName() {
         return methodName;
@@ -105,7 +117,7 @@ public class APIHerdMeta {
     private static String getOptString(JSONObject obj, String key) {
         if (null == obj.opt(key))
             return new String("");
-        return obj.getString(key);
+        return obj.get(key).toString();
     }
 
     public static APIHerdMeta parseAPIMeta(JSONObject json) {
@@ -123,6 +135,7 @@ public class APIHerdMeta {
         meta.setRequestTime(getOptString(herd, "RequestTime"));
         meta.setServiceStage(getOptString(herd, "ServiceStage"));
         meta.setMethodName(getOptString(herd, "MethodName"));
+        meta.setOwnerId(getOptString(herd, "OwnerId"));
         String needResponse = herd.optString("NeedResponse");
         if (null == needResponse)
             meta.needResponse = true;
@@ -130,7 +143,7 @@ public class APIHerdMeta {
             meta.needResponse = false;
         else
             meta.needResponse = true;
-        meta.setMetaJson(herd);
+        meta.setMetaJson(json);
 
         return meta;
     }

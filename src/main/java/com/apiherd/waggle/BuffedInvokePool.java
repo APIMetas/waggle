@@ -1,6 +1,7 @@
 package com.apiherd.waggle;
 
 import com.apiherd.api.*;
+import org.json.JSONObject;
 
 import java.util.*;
 import java.nio.ByteBuffer;
@@ -31,13 +32,13 @@ public class BuffedInvokePool {
     private void initPoolFixed() {
         this.registerAPI("SubscribeResource", new APIable() {
             @Override
-            public String invokeAPI(RawsRequest request, WriteableChannel channel) {
+            public JSONObject invokeAPI(RawsRequest request, WriteableChannel channel) {
                 return notes.subscribeTopic(request, channel);
             }
         });
         this.registerAPI("GetAPIMetrics", new APIable() {
             @Override
-            public String invokeAPI(RawsRequest request, WriteableChannel channel) {
+            public JSONObject invokeAPI(RawsRequest request, WriteableChannel channel) {
                 return metrics.getAPIMetrics(request, channel);
             }
         });

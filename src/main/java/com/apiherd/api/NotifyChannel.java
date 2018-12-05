@@ -1,5 +1,7 @@
 package com.apiherd.api;
 
+import org.json.JSONObject;
+
 import java.util.Iterator;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -50,13 +52,13 @@ public class NotifyChannel{
         }
     }
 
-    public String subscribeTopic(RawsRequest request, WriteableChannel channel) {
+    public JSONObject subscribeTopic(RawsRequest request, WriteableChannel channel) {
         APIRequest api = (APIRequest) request;
         String key = (String) api.getBiz().opt("ResourceKey");
         if (null == key)
-            return api.getRequestIdJson();
+            return new JSONObject(api.getRequestIdJson());
         this.registerListener(key, channel);
 
-        return api.getRequestIdJson();
+        return new JSONObject(api.getRequestIdJson());
     }
 }

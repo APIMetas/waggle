@@ -16,22 +16,22 @@ import org.slf4j.LoggerFactory;
 public class ConsumerHandler extends WriteableChannel implements Callable<String> {
 
     private BuffedInvokePool pool;
-    private ByteBuffer buffer = null;
+    private String requestJson = null;
     protected static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
 
     public ConsumerHandler(ByteBuffer buffer, SelectableChannel channel, BuffedInvokePool pool) {
         this.pool = pool;
-        this.buffer = buffer;
         this.channel = channel;
+        this.requestJson = new String(buffer.array(), 0, buffer.position(), Charset.forName("UTF-8")).trim();
     }
 
     @Override
     public String call() {
-        String response = null;
-        RawsRequest raw = RawsRequest.parseRawRequest(buffer);
-        APIRequest request = APIRequest.parseAPIRequest(raw);
-        if (null == request.getMeta())
+        JSONObject response = null;
+        RawsRequest raw = RawsRequest.parseRawRequest(requestJson);
+        if (null == raw)
             return "";
+        APIRequest request = APIRequest.parseAPIRequest(raw);
         Date calling = new Date();
         this.pool.apiCalling(request.getAPIName());
         APINotifiable function = this.pool.getAPI(request.getAPIName());
@@ -39,7 +39,7 @@ public class ConsumerHandler extends WriteableChannel implements Callable<String
             response = function.invokeAPI(request, this);
             try {
                 if (request.getMeta().getNeedResponse())
-                    this.writeString(response);
+                    this.writeString(response.toString());
                 this.pool.apiCalled(request.getMeta().getRequestId(), request.getAPIName(),
                         (new Date()).getTime() - calling.getTime());
             } catch (IOException exp) {
@@ -48,15 +48,13 @@ public class ConsumerHandler extends WriteableChannel implements Callable<String
             if (function.ifNotifiable()) {
                 JSONObject meta = request.getMeta().getMetaJson();
                 meta.put("RequestId", BuffedInvokePool.REFERED_REQUEST_ID);
-                JSONObject json = new JSONObject(response);
-                String pathKey = (String) json.opt("ResourceKey");
-                json = request.getBiz().put("APIMetas", meta);
+                String pathKey = (String) response.opt("ResourceKey");
+                response = request.getBiz().put("APIMetas", meta);
                 this.pool.notifyListeners(pathKey,
-                        ByteBuffer.wrap(json.toString().getBytes(Charset.forName("UTF-8"))));
+                        ByteBuffer.wrap(response.toString().getBytes(Charset.forName("UTF-8"))));
             }
         }
-
-        return response;
+        return "";
     }
 
     @Override

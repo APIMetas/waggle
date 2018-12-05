@@ -1,6 +1,6 @@
 package com.apiherd.tenantdb;
 
-import com.apiherd.api.APIRequest;
+import org.json.JSONObject;
 
 import java.util.Set;
 import java.util.HashMap;
@@ -17,11 +17,10 @@ public abstract class TreedJson {
     }
 
     public TreedJson(TreedJson father, String key) {
-        this.key = key;
+        this(key);
         this.father = father;
-        this.childArrays = new HashMap<>();
-
-        this.father.addChild(this);
+        if (null != father)
+            this.father.addChild(this);
     }
 
     public Set<String> getChildArrayNames() {
@@ -36,6 +35,10 @@ public abstract class TreedJson {
         return childArrays.get(name);
     }
 
+    public TreedJson getFather() {
+        return this.father;
+    }
+
     public void addChild(TreedJson child) {
         this.childArrays.put(child.getClass().getSimpleName() + "s", child);
     }
@@ -44,19 +47,16 @@ public abstract class TreedJson {
         return this.key;
     }
 
-    public String getPrimaryKey(APIRequest request) {
-        String value = (String)request.getBiz().opt(this.key);
+    public String getPrimaryKey(String userId, JSONObject request) {
+        Object value = request.opt(this.key);
         if (null == value)
             return "+";
-        return value;
+        return value.toString();
     }
 
-    public String getKeyFullPath(String userId, APIRequest request) {
-
-        String prefix = this.father.getKeyFullPath(userId, request);
-
-        prefix += "/" + this.getClass().getSimpleName() + "s/" + this.getPrimaryKey(request);
-
+    public String getKeyFullPath(String userId, JSONObject biz) {
+        String prefix = this.father.getKeyFullPath(userId, biz);
+        prefix += "/" + this.getClass().getSimpleName() + "s/" + this.getPrimaryKey(userId, biz);
         return  prefix;
     }
 }

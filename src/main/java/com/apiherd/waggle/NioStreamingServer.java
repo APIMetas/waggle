@@ -12,7 +12,7 @@ public class NioStreamingServer extends StreamingServer implements Runnable {
     public NioStreamingServer(int transferPort, BuffedInvokePool pool) {
         super(transferPort, pool);
     }
-
+    
     public NioStreamingServer(int transferPort, BuffedInvokePool pool, String dir) {
         super(transferPort, pool, dir);
     }
@@ -45,10 +45,15 @@ public class NioStreamingServer extends StreamingServer implements Runnable {
         try {
             buffer.clear();
             this.channel = (ByteChannel)chnnl;
-            this.channel.read(buffer);
+            int readBytes = this.channel.read(buffer);
+            while (readBytes > 0)
+                readBytes = this.channel.read(buffer);
+            if (-1 == readBytes)
+                chnnl.close();
+            if (0 == buffer.position())
+                return null;
             ConsumerHandler handler = new ConsumerHandler(buffer, chnnl, this.pool);
-            if (0 != buffer.position())
-                pool.executeAPIInvoke(handler);
+            pool.executeAPIInvoke(handler);
         } catch (Exception exp) {
             try {
                 channel.close();

@@ -1,12 +1,16 @@
 package com.apiherd.tenantdb;
 
 import java.util.Set;
+import java.util.List;
 
-import com.apiherd.api.APIRequest;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import com.apiherd.api.APIable;
+import com.apiherd.api.APIRequest;
+import com.apiherd.api.RawsRequest;
 import com.apiherd.api.WriteableChannel;
 import com.apiherd.waggle.BuffedInvokePool;
-import com.apiherd.api.RawsRequest;
 
 public class BDBTree extends BDBHelper {
 
@@ -14,78 +18,67 @@ public class BDBTree extends BDBHelper {
         super(dirPath, dbName);
     }
 
-    public String putJson(TreedJson tree, APIRequest request) {
+    public JSONObject putJson(TreedJson tree, APIRequest request) {
         String userId = request.getMeta().getUserId();
-        String key = tree.getKeyFullPath(userId, request);
-
         KeyHelper.putLastUpdate(request);
+        this.putJsonObject(userId, tree, request.getBiz());
 
-        this.putJsonObject(key, request.getBiz().toString());
-
-        return request.getShortResponse(key);
+        String key = tree.getKeyFullPath(userId, request.getBiz());
+        return new JSONObject(request.getShortResponse(key));
     }
 
-    public String deleteJson(TreedJson tree, APIRequest request) {
+    public JSONObject deleteJson(TreedJson tree, APIRequest request) {
         String userId = request.getMeta().getUserId();
-        String key = tree.getKeyFullPath(userId, request);
-        this.deleteObject(key);
+        this.deleteObject(userId, tree, request.getBiz());
 
-        return request.getShortResponse(key);
+        String key = tree.getKeyFullPath(userId, request.getBiz());
+        return new JSONObject(request.getShortResponse(key));
     }
 
-    public String searchJsons(TreedJson tree, APIRequest request) {
-        String name = tree.getClass().getSimpleName() + "s";
-        String key = request.getBiz().getString("SearchKey");
-
-        StringBuilder sb = new StringBuilder("{\"RequestId\":\"");
-        sb.append(request.getMeta().getRequestId()).append("\"}");
-        KeyHelper.concatDescends(sb, name, this.searchJsons(key));
-
-        return sb.toString();
-    }
-
-    public String getJson(TreedJson tree, APIRequest request) {
+    public JSONObject getJsons(TreedJson tree, APIRequest request) {
         String userId = request.getMeta().getUserId();
-        String key = tree.getKeyFullPath(userId, request);
-        String father = this.getJsonObject(key);
+        JSONObject object = this.getJsonArray(userId, tree, request.getBiz());
+        object.put("RequestId", request.getMeta().getRequestId());
 
-        StringBuilder sb = new StringBuilder("{\"RequestId\":\"");
-        sb.append(request.getMeta().getRequestId());
-        if (null == father || father.equals(""))
-            return sb.append("}").toString();
+        return object;
+    }
 
-        if (father.trim().length() > 2)
-            sb.append("\",");
-        else
-            sb.append("\"");
-        sb.append(father.substring(1));
+    public JSONObject getJson(TreedJson tree, APIRequest request) {
+        String userId = request.getMeta().getUserId();
+        String key = tree.getKeyFullPath(userId, request.getBiz());
+
         Set<String> childs = tree.getChildArrayNames();
+        JSONObject object = this.getJsonObject(userId, tree, request.getBiz());
         for (String child:childs) {
-            String[] subArray = this.getDescendObjects(key + "/" + child);
-            KeyHelper.concatDescends(sb, child, subArray);
+            List<String> founds = this.getDescendObjects(key + "/" + child);
+            JSONArray array = new JSONArray();
+            for(String str:founds)
+                array.put(new JSONObject(str));
+            object.put(child, array);
         }
+        object.put("RequestId", request.getMeta().getRequestId());
 
-        return sb.toString();
+        return object;
     }
 
     public void registerResource(TreedJson base, BuffedInvokePool pool) {
         String strName = base.getClass().getSimpleName();
         pool.registerAPI("Put" + strName, new APIable() {
             @Override
-            public String invokeAPI(RawsRequest request, WriteableChannel channel) {
-                return putJson(base, (APIRequest) request); }});
+            public JSONObject invokeAPI(RawsRequest request, WriteableChannel channel) {
+                return putJson(base, (APIRequest) request); }}, true);
         pool.registerAPI("Get" + strName, new APIable() {
             @Override
-            public String invokeAPI(RawsRequest request, WriteableChannel channel) {
+            public JSONObject invokeAPI(RawsRequest request, WriteableChannel channel) {
                 return getJson(base, (APIRequest) request); }});
         pool.registerAPI("Delete" + strName, new APIable() {
             @Override
-            public String invokeAPI(RawsRequest request, WriteableChannel channel) {
-                return deleteJson(base, (APIRequest) request); }});
-        pool.registerAPI("Search" + strName +"s", new APIable() {
+            public JSONObject invokeAPI(RawsRequest request, WriteableChannel channel) {
+                return deleteJson(base, (APIRequest) request); }}, true);
+        pool.registerAPI("Get" + strName +"s", new APIable() {
             @Override
-            public String invokeAPI(RawsRequest request, WriteableChannel channel) {
-                return searchJsons(base, (APIRequest) request); }});
+            public JSONObject invokeAPI(RawsRequest request, WriteableChannel channel) {
+                return getJsons(base, (APIRequest) request); }});
     }
 
 }

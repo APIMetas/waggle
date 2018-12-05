@@ -1,5 +1,7 @@
 package com.apiherd.api;
 
+import org.json.JSONObject;
+
 public interface APIable {
-    String invokeAPI(RawsRequest request, WriteableChannel channel);
+    JSONObject invokeAPI(RawsRequest request, WriteableChannel channel);
 }

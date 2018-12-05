@@ -1,5 +1,7 @@
 package com.apiherd.api;
 
+import org.json.JSONObject;
+
 public class APINotifiable implements APIable {
     protected APIable api;
     protected boolean notifiable;
@@ -19,7 +21,7 @@ public class APINotifiable implements APIable {
     }
 
     @Override
-    public String invokeAPI(RawsRequest request, WriteableChannel channel) {
+    public JSONObject invokeAPI(RawsRequest request, WriteableChannel channel) {
         return this.api.invokeAPI(request, channel);
     }
 }

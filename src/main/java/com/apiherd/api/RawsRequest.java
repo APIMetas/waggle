@@ -6,7 +6,6 @@ import java.nio.charset.Charset;
 public class RawsRequest {
     private String json;
     private byte[] MIME;
-    private static Charset utf8 = Charset.forName("UTF-8");
 
     public String getJson() {
         return json;
@@ -26,10 +25,8 @@ public class RawsRequest {
         System.arraycopy(buff, begin, this.MIME, 0, length);
     }
 
-    public static RawsRequest parseRawRequest(ByteBuffer bit) {
-        String strRequest = new String(bit.array(),
-                0, bit.position(), Charset.forName("UTF-8")).trim();
-
+    public static RawsRequest parseRawRequest(String request) {
+        String strRequest = request;
         int posBegin = strRequest.indexOf("{");
         int posEnd = strRequest.lastIndexOf("}");
 

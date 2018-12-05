@@ -2,9 +2,9 @@ package com.apiherd.tenantdb;
 
 import java.io.File;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
+import com.apiherd.api.DateHelper;
 import com.sleepycat.je.Cursor;
 import com.sleepycat.je.Database;
 import com.sleepycat.je.DatabaseConfig;
@@ -17,6 +17,8 @@ import com.sleepycat.je.SecondaryConfig;
 import com.sleepycat.je.SecondaryDatabase;
 import com.sleepycat.je.SecondaryKeyCreator;
 import com.sleepycat.je.Transaction;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,12 +68,14 @@ public class BDBHelper extends DBHelper {
     }
 
     @Override
-    public void putJsonObject(String key, String value) {
+    public void putJsonObject(String ownerId, TreedJson tree, JSONObject value) {
+        super.putJsonObject(ownerId, tree, value);
+        String key = tree.getKeyFullPath(ownerId, value);
         DatabaseEntry keyEntry = new DatabaseEntry();
         DatabaseEntry dataEntry = new DatabaseEntry();
 
         keyEntry.setData(key.getBytes(Charset.forName("UTF-8")));
-        dataEntry.setData(value.getBytes(Charset.forName("UTF-8")));
+        dataEntry.setData(value.toString().getBytes(Charset.forName("UTF-8")));
 
         Transaction txn = dbenv.beginTransaction(null, null);
         db.put(null, keyEntry, dataEntry);
@@ -79,68 +83,41 @@ public class BDBHelper extends DBHelper {
     }
 
     @Override
-    public String getJsonObject(String key) {
-        DatabaseEntry keyEntry = new DatabaseEntry();
-        DatabaseEntry dataEntry = new DatabaseEntry();
-
-        keyEntry.setData(key.getBytes(Charset.forName("UTF-8")));
-
-        Transaction txn = dbenv.beginTransaction(null, null);
-        db.get(txn, keyEntry, dataEntry, LockMode.DEFAULT);
-        txn.commit();
-
-        return new String(dataEntry.getData(), Charset.forName("UTF-8"));
-    }
-
-    public String[] searchJsons(String key) {
-        List<String> objs = new ArrayList<>();
-        Cursor cursor = this.db.openCursor(null, null);
-        BDBSearchConstraint constraint = new BDBSearchConstraint(key);
-        try {
-            DatabaseEntry foundKey = new DatabaseEntry();
-            DatabaseEntry foundData = new DatabaseEntry();
-            OperationStatus retVal = cursor.getNext(foundKey, foundData, LockMode.DEFAULT);
-            if (retVal == OperationStatus.NOTFOUND) {
-                cursor.close();
-                return null;
-            }
-            while (retVal == OperationStatus.SUCCESS) {
-                if (constraint.inBounds(foundKey.getData())) {
-                    String Key = new String(foundKey.getData(), Charset.forName("UTF-8"));
-                    String value = new String(foundData.getData(), Charset.forName("UTF-8"));
-                    int end = value.lastIndexOf("}");
-                    objs.add(value.substring(0, end) + ", \"ResourceKey\":\"" + Key +"\"}");
-                }
-                retVal = cursor.getNext(foundKey, foundData, LockMode.DEFAULT);
-            }
-            cursor.close();
-        } catch (Exception exp) {
-            log.error("", exp);
-        } finally {
-            try {
-                cursor.close();
-            } catch (Exception exp) {
-                log.error("", exp);
-            }
+    public void putJsonArray(String ownerId, TreedJson tree, JSONArray array) {
+        for (Iterator<Object> it = array.iterator(); it.hasNext(); ) {
+            JSONObject obj = (JSONObject) it.next();
+            obj.put("LastUpdate", DateHelper.getISO8601Time(null));
+            this.putJsonObject(ownerId, tree, obj);
         }
-        if (0 == objs.size())
-            return null;
-        return objs.toArray(new String[1]);
     }
 
     @Override
-    public void deleteObject(String key) {
+    public void deleteObject(String ownerId, TreedJson tree, JSONObject value) {
+        String key = tree.getKeyFullPath(ownerId, value);
         DatabaseEntry keyEntry = new DatabaseEntry();
 
         keyEntry.setData(key.getBytes(Charset.forName("UTF-8")));
-
         Transaction txn = dbenv.beginTransaction(null, null);
         db.delete(txn, keyEntry);
         subDB.delete(txn, keyEntry);
         txn.commit();
     }
 
-    public String[] getDescendObjects(String key) {
+    @Override
+    public JSONObject getJsonObject(String ownerId, TreedJson tree, JSONObject value) {
+        String key = tree.getKeyFullPath(ownerId, value);
+        DatabaseEntry keyEntry = new DatabaseEntry();
+        DatabaseEntry dataEntry = new DatabaseEntry();
+
+        keyEntry.setData(key.getBytes(Charset.forName("UTF-8")));
+        Transaction txn = dbenv.beginTransaction(null, null);
+        db.get(txn, keyEntry, dataEntry, LockMode.DEFAULT);
+        txn.commit();
+
+        return new JSONObject(new String(dataEntry.getData(), Charset.forName("UTF-8")));
+    }
+
+    public List<String> getDescendObjects(String key) {
         List<String> objs = new ArrayList<>();
         DatabaseEntry theData = new DatabaseEntry();
         DatabaseEntry theKey = new DatabaseEntry(key.getBytes(Charset.forName("UTF-8")));
@@ -152,18 +129,84 @@ public class BDBHelper extends DBHelper {
         if (retVal == OperationStatus.NOTFOUND) {
             cursor.close();
             txn.commit();
-            return null;
+            return objs;
         }
 
         while (retVal == OperationStatus.SUCCESS) {
             objs.add(new String(theData.getData(), Charset.forName("UTF-8")));
             retVal = cursor.getNextDup(theKey, theData, LockMode.DEFAULT);
         }
-
         cursor.close();
         txn.commit();
 
-        return objs.toArray(new String[1]);
+        return objs;
+    }
+
+    @Override
+    public JSONObject getJsonArray(String ownerId, TreedJson tree, JSONObject value) {
+        String sort = "asc";
+        BDBSearchConstraint constraint;
+        String key = tree.getKeyFullPath(ownerId, value);
+        String tokenId = value.optString("NextToken");
+        int limit = value.optInt("Limit", 10);
+
+        if (! "".equals(tokenId)) {
+            int index = tokenId.indexOf("/");
+            sort = tokenId.substring(0, index);
+            tokenId = tokenId.substring(index + 1);
+        } else
+            tokenId = key;
+        if (sort.equals("asc"))
+            constraint = new BDBSearchConstraint(key, limit);
+        else
+            constraint = new BDBSearchDesc(key, limit);
+        LinkedHashMap<String, String> map = this.searchJsons(key, tokenId, constraint);
+        JSONArray array = new JSONArray();
+        JSONObject json = new JSONObject("{}");
+        json.put("CurrentSize", map.size());
+        json.put("NextToken", sort+"/"+constraint.getNextToken());
+        for (String str:map.values())
+            array.put(new JSONObject(str));
+        json.put(tree.getClass().getSimpleName()+"s", array);
+
+        return json;
+    }
+
+    public LinkedHashMap<String, String> searchJsons(String key,
+                                                     String token,
+                                                     BDBSearchConstraint constraint) {
+        DatabaseEntry foundKey = null;
+        OperationStatus retVal = null;
+        DatabaseEntry foundData = new DatabaseEntry();
+        LinkedHashMap<String, String> set = new LinkedHashMap<>();
+        Cursor cursor = this.db.openCursor(null, null);
+        try {
+            foundKey = new DatabaseEntry(token.getBytes(Charset.forName("UTF-8")));
+            retVal = cursor.getSearchKey(foundKey, foundData, LockMode.DEFAULT);
+            if (retVal != OperationStatus.SUCCESS) {
+                cursor.close();
+                return set;
+            }
+            retVal = constraint.getNext(cursor, foundKey, foundData, LockMode.DEFAULT);
+            while (retVal == OperationStatus.SUCCESS) {
+                if (constraint.inBounds(foundKey.getData())) {
+                    String Key = new String(foundKey.getData(), Charset.forName("UTF-8"));
+                    String value = new String(foundData.getData(), Charset.forName("UTF-8"));
+                    set.put(key, value);
+                }
+                retVal = constraint.getNext(cursor, foundKey, foundData, LockMode.DEFAULT);
+            }
+            cursor.close();
+        } catch (Exception exp) {
+            log.error("", exp);
+        } finally {
+            try {
+                cursor.close();
+            } catch (Exception exp) {
+                log.error("", exp);
+            }
+        }
+        return set;
     }
 
     private static class TreeKeyCreator implements SecondaryKeyCreator {
